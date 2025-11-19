@@ -5,7 +5,7 @@
 //! ```
 #![doc = include_str!("../examples/main.rs")]
 //! ```
-extern crate ffmpeg_the_third as ffmpeg;
+extern crate ffmpeg_next as ffmpeg;
 use anyhow::Result;
 use atomic::Atomic;
 use bytemuck::NoUninit;
@@ -546,7 +546,8 @@ impl Player {
                     .unwrap_or_else(|| {
                         //TODO incorporate left/right margin
                         let mut center_bottom = original_rect_center_bottom;
-                        center_bottom.y = center_bottom.y.min(last_bottom) - subtitle.margin.bottom;
+                        center_bottom.y =
+                            center_bottom.y.min(last_bottom) - subtitle.margin.bottom as f32;
                         transform.transform_pos(center_bottom)
                     }),
                 subtitle.alignment,
@@ -624,9 +625,9 @@ impl Player {
 
         if currently_seeking {
             let seek_indicator_shadow = Shadow {
-                offset: vec2(10.0, 20.0),
-                blur: 15.0,
-                spread: 0.0,
+                offset: [10, 20],
+                blur: 15,
+                spread: 0,
                 color: Color32::from_black_alpha(96).linear_multiply(seek_indicator_anim),
             };
             let spinner_size = 20. * seek_indicator_anim;
@@ -708,9 +709,9 @@ impl Player {
         };
 
         let shadow = Shadow {
-            offset: vec2(10.0, 20.0),
-            blur: 15.0,
-            spread: 0.0,
+            offset: [10, 20],
+            blur: 15,
+            spread: 0,
             color: Color32::from_black_alpha(25).linear_multiply(seekbar_anim_frac),
         };
 
@@ -814,7 +815,7 @@ impl Player {
                     Color32::from_black_alpha(contraster_alpha).linear_multiply(stream_anim_frac);
 
                 ui.painter()
-                    .rect_filled(background_rect, Rounding::same(5.), background_color);
+                    .rect_filled(background_rect, Rounding::same(5), background_color);
 
                 if ui.rect_contains_pointer(background_rect.expand(5.)) {
                     stream_info_hovered = true;
@@ -919,10 +920,10 @@ impl Player {
                 .set_top(sound_bar_rect.bottom() - audio_volume_frac * sound_bar_rect.height());
 
             ui.painter()
-                .rect_filled(sound_slider_rect, Rounding::same(5.), sound_slider_bg_color);
+                .rect_filled(sound_slider_rect, Rounding::same(5), sound_slider_bg_color);
 
             ui.painter()
-                .rect_filled(sound_bar_rect, Rounding::same(5.), sound_bar_color);
+                .rect_filled(sound_bar_rect, Rounding::same(5), sound_bar_color);
             let sound_slider_resp = ui.interact(
                 sound_slider_rect,
                 frame_response.id.with("sound_slider_sense"),
@@ -966,9 +967,9 @@ impl Player {
 
             let audio_sample_buffer = HeapRb::<f32>::new(audio_device.0.spec().size as usize);
             let (audio_sample_producer, audio_sample_consumer) = audio_sample_buffer.split();
-            let audio_resampler = ffmpeg::software::resampling::context::Context::get2(
+            let audio_resampler = ffmpeg::software::resampling::context::Context::get(
                 audio_decoder.format(),
-                audio_decoder.ch_layout(),
+                audio_decoder.channel_layout(),
                 audio_decoder.rate(),
                 audio_device.0.spec().format.to_sample(),
                 ChannelLayout::STEREO,
@@ -1335,8 +1336,7 @@ pub trait Streamer: Send {
     }
     /// Recieve the next packet of the stream.
     fn recieve_next_packet(&mut self) -> Result<()> {
-        if let Some(packet) = self.input_context().packets().next() {
-            let (stream, packet) = packet?;
+        if let Some((stream, packet)) = self.input_context().packets().next() {
             let time_base = stream.time_base();
             if stream.index() == *self.stream_index() {
                 self.decoder().send_packet(&packet)?;
@@ -1469,9 +1469,9 @@ impl Streamer for AudioStreamer {
             .unwrap()
             .audio()
             .unwrap();
-        let new_resampler = ffmpeg::software::resampling::context::Context::get2(
+        let new_resampler = ffmpeg::software::resampling::context::Context::get(
             new_decoder.format(),
-            new_decoder.ch_layout(),
+            new_decoder.channel_layout(),
             new_decoder.rate(),
             self.resampler.output().format,
             ChannelLayout::STEREO,
@@ -1568,8 +1568,7 @@ impl Streamer for SubtitleStreamer {
         &self.player_state
     }
     fn recieve_next_packet(&mut self) -> Result<()> {
-        if let Some(packet) = self.input_context().packets().next() {
-            let (stream, packet) = packet?;
+        if let Some((stream, packet)) = self.input_context().packets().next() {
             let time_base = stream.time_base();
             if stream.index() == *self.stream_index() {
                 if let Some(dts) = packet.dts() {
@@ -1668,7 +1667,7 @@ fn packed<T: ffmpeg::frame::audio::Sample>(frame: &ffmpeg::frame::Audio) -> &[T]
 
     if !<T as ffmpeg::frame::audio::Sample>::is_valid(
         frame.format(),
-        frame.ch_layout().channels() as u16,
+        frame.channel_layout().channels() as u16,
     ) {
         panic!("unsupported type");
     }
@@ -1676,7 +1675,7 @@ fn packed<T: ffmpeg::frame::audio::Sample>(frame: &ffmpeg::frame::Audio) -> &[T]
     unsafe {
         std::slice::from_raw_parts(
             (*frame.as_ptr()).data[0] as *const T,
-            frame.samples() * frame.ch_layout().channels() as usize,
+            frame.samples() * frame.channel_layout().channels() as usize,
         )
     }
 }
@@ -1713,5 +1712,6 @@ fn video_frame_to_image(frame: Video) -> ColorImage {
                 .map(|p| Color32::from_rgb(p[0], p[1], p[2])),
         )
     }
+
     ColorImage { size, pixels }
 }
