@@ -1713,5 +1713,6 @@ fn video_frame_to_image(frame: Video) -> ColorImage {
         )
     }
 
-    ColorImage { size, pixels }
+    let source_size = Vec2::new(frame.width() as f32, frame.height() as f32);
+    ColorImage { size, source_size, pixels }
 }
