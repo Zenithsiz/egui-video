@@ -22,10 +22,13 @@ fn tuple_int_2(v: Vec<f64>) -> Result<(i64, i64)> {
 
 fn tuple_float_2(v: Vec<f64>) -> Result<(f64, f64)> {
     const FAIL_TEXT: &str = "invalid number of items";
-    Ok((*v.first().context(FAIL_TEXT)?, *v.get(1).context(FAIL_TEXT)?))
+    Ok((
+        *v.first().context(FAIL_TEXT)?,
+        *v.get(1).context(FAIL_TEXT)?,
+    ))
 }
 
-fn fad(i: &str) -> IResult<&str, SubtitleField> {
+fn fad(i: &str) -> IResult<&str, SubtitleField<'_>> {
     preceded(
         tag(r"\fad"),
         map(map_res(num_list, tuple_int_2), |f| {
@@ -38,7 +41,7 @@ fn fad(i: &str) -> IResult<&str, SubtitleField> {
     )(i)
 }
 
-fn t(i: &str) -> IResult<&str, SubtitleField> {
+fn t(i: &str) -> IResult<&str, SubtitleField<'_>> {
     preceded(
         tag(r"\t"),
         delimited(
@@ -51,7 +54,7 @@ fn t(i: &str) -> IResult<&str, SubtitleField> {
     )(i)
 }
 
-fn an(i: &str) -> IResult<&str, SubtitleField> {
+fn an(i: &str) -> IResult<&str, SubtitleField<'_>> {
     preceded(
         tag(r"\an"),
         map_res(digit1, |s: &str| match s.parse::<i64>() {
@@ -71,7 +74,7 @@ fn an(i: &str) -> IResult<&str, SubtitleField> {
     )(i)
 }
 
-fn pos(i: &str) -> IResult<&str, SubtitleField> {
+fn pos(i: &str) -> IResult<&str, SubtitleField<'_>> {
     preceded(
         tag(r"\pos"),
         map(map_res(num_list, tuple_float_2), |p| {
@@ -91,14 +94,14 @@ fn hex_to_color32(i: &str) -> IResult<&str, Color32> {
     let (i, (blue, green, red)) = tuple((hex_primary, hex_primary, hex_primary))(i)?;
     Ok((i, Color32::from_rgb(red, green, blue)))
 }
-fn c(i: &str) -> IResult<&str, SubtitleField> {
+fn c(i: &str) -> IResult<&str, SubtitleField<'_>> {
     delimited(
         alt((tag(r"\c&H"), tag(r"\1c&H"))),
         map(hex_to_color32, SubtitleField::PrimaryFill),
         tag("&"),
     )(i)
 }
-fn undefined(i: &str) -> IResult<&str, SubtitleField> {
+fn undefined(i: &str) -> IResult<&str, SubtitleField<'_>> {
     map(
         preceded(char('\\'), take_till(|c| "}\\".contains(c))),
         SubtitleField::Undefined,
@@ -143,10 +146,7 @@ fn opt_comma(i: &str) -> IResult<&str, Option<char>> {
 }
 
 fn string_field(i: &str) -> IResult<&str, Option<String>> {
-    preceded(
-        opt_comma,
-        map(opt(not_comma), |s| s.map(String::from)),
-    )(i)
+    preceded(opt_comma, map(opt(not_comma), |s| s.map(String::from)))(i)
 }
 
 fn num_field(i: &str) -> IResult<&str, i32> {

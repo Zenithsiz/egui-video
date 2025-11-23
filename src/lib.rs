@@ -15,7 +15,7 @@ use egui::epaint::Shadow;
 use egui::load::SizedTexture;
 
 use egui::{
-    vec2, Align2, Color32, ColorImage, FontId, Image, Pos2, Rect, Response, Rounding, Sense,
+    vec2, Align2, Color32, ColorImage, CornerRadius, FontId, Image, Pos2, Rect, Response, Sense,
     Spinner, TextureHandle, TextureOptions, Ui, Vec2,
 };
 use ffmpeg::error::EAGAIN;
@@ -497,7 +497,7 @@ impl Player {
     }
 
     /// Create the [`egui::Image`] for the video frame.
-    pub fn generate_frame_image(&self, size: Vec2) -> Image {
+    pub fn generate_frame_image(&self, size: Vec2) -> Image<'_> {
         Image::new(SizedTexture::new(self.texture_handle.id(), size)).sense(Sense::click())
     }
 
@@ -632,7 +632,7 @@ impl Player {
             };
             let spinner_size = 20. * seek_indicator_anim;
             ui.painter()
-                .add(seek_indicator_shadow.as_shape(frame_response.rect, Rounding::ZERO));
+                .add(seek_indicator_shadow.as_shape(frame_response.rect, CornerRadius::ZERO));
             ui.put(
                 Rect::from_center_size(frame_response.rect.center(), Vec2::splat(spinner_size)),
                 Spinner::new().size(spinner_size),
@@ -722,15 +722,15 @@ impl Player {
         let seekbar_color = Color32::WHITE.linear_multiply(seekbar_anim_frac);
 
         ui.painter()
-            .add(shadow.as_shape(shadow_rect, Rounding::ZERO));
+            .add(shadow.as_shape(shadow_rect, CornerRadius::ZERO));
 
         ui.painter().rect_filled(
             fullseekbar_rect,
-            Rounding::ZERO,
+            CornerRadius::ZERO,
             fullseekbar_color.linear_multiply(0.5),
         );
         ui.painter()
-            .rect_filled(seekbar_rect, Rounding::ZERO, seekbar_color);
+            .rect_filled(seekbar_rect, CornerRadius::ZERO, seekbar_color);
         ui.painter().text(
             pause_icon_pos,
             Align2::LEFT_BOTTOM,
@@ -815,7 +815,7 @@ impl Player {
                     Color32::from_black_alpha(contraster_alpha).linear_multiply(stream_anim_frac);
 
                 ui.painter()
-                    .rect_filled(background_rect, Rounding::same(5), background_color);
+                    .rect_filled(background_rect, CornerRadius::same(5), background_color);
 
                 if ui.rect_contains_pointer(background_rect.expand(5.)) {
                     stream_info_hovered = true;
@@ -919,11 +919,14 @@ impl Player {
             sound_bar_rect
                 .set_top(sound_bar_rect.bottom() - audio_volume_frac * sound_bar_rect.height());
 
-            ui.painter()
-                .rect_filled(sound_slider_rect, Rounding::same(5), sound_slider_bg_color);
+            ui.painter().rect_filled(
+                sound_slider_rect,
+                CornerRadius::same(5),
+                sound_slider_bg_color,
+            );
 
             ui.painter()
-                .rect_filled(sound_bar_rect, Rounding::same(5), sound_bar_color);
+                .rect_filled(sound_bar_rect, CornerRadius::same(5), sound_bar_color);
             let sound_slider_resp = ui.interact(
                 sound_slider_rect,
                 frame_response.id.with("sound_slider_sense"),
@@ -1714,5 +1717,9 @@ fn video_frame_to_image(frame: Video) -> ColorImage {
     }
 
     let source_size = Vec2::new(frame.width() as f32, frame.height() as f32);
-    ColorImage { size, source_size, pixels }
+    ColorImage {
+        size,
+        source_size,
+        pixels,
+    }
 }
