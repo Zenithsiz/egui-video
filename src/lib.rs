@@ -6,13 +6,13 @@
 #![doc = include_str!("../examples/main.rs")]
 //! ```
 extern crate ffmpeg_next as ffmpeg;
-use anyhow::Result;
 use atomic::Atomic;
 use bytemuck::NoUninit;
 use chrono::{DateTime, Duration, Utc};
 use egui::emath::RectTransform;
 use egui::epaint::Shadow;
 use egui::load::SizedTexture;
+use {anyhow::Result, std::collections::HashMap};
 
 use egui::{
     vec2, Align2, Color32, ColorImage, CornerRadius, FontId, Image, Pos2, Rect, Response, Sense,
@@ -375,7 +375,6 @@ impl Player {
         let mut texture_handle = self.texture_handle.clone();
         let texture_options = self.options.texture_options;
         let ctx = self.ctx_ref.clone();
-        let wait_duration = Duration::milliseconds((1000. / self.framerate) as i64);
 
         fn play<T: Streamer>(streamer: &Weak<Mutex<T>>) {
             if let Some(streamer) = streamer.upgrade() {
@@ -402,10 +401,34 @@ impl Player {
 
         let video_streamer_ref = Arc::downgrade(&self.video_streamer);
 
-        let video_timer_guard = self.video_timer.schedule_repeating(wait_duration, move || {
-            play(&video_streamer_ref);
-            ctx.request_repaint();
-        });
+        let video_elapsed_ms = self.video_elapsed_ms.clone();
+        let framerate = self.framerate;
+        let mut video_sleep_times = HashMap::new();
+        let video_timer_guard = self
+            .video_timer
+            .schedule_repeating(Duration::zero(), move || {
+                let video_elapsed_cur_ms = video_elapsed_ms.get();
+
+                // Get the time to sleep
+                let sleep_time = match video_sleep_times.get(&video_elapsed_cur_ms) {
+                    Some(&sleep_time) => sleep_time,
+                    // TODO: Don't approximate and somehow get how long to wait until next frame.
+                    None => Duration::milliseconds((1000.0 / framerate) as i64),
+                };
+
+                std::thread::sleep(sleep_time.to_std().unwrap_or(std::time::Duration::ZERO));
+
+                play(&video_streamer_ref);
+                let video_elapsed_next_ms = video_elapsed_ms.get();
+
+                // Update the sleep times once we actually know it for sure
+                video_sleep_times.insert(
+                    video_elapsed_cur_ms,
+                    Duration::milliseconds(video_elapsed_next_ms - video_elapsed_cur_ms),
+                );
+
+                ctx.request_repaint();
+            });
 
         self.video_thread = Some(video_timer_guard);
 
@@ -419,9 +442,10 @@ impl Player {
 
         if let Some(subtitle_decoder) = self.subtitle_streamer.as_ref() {
             let subtitle_decoder_ref = Arc::downgrade(subtitle_decoder);
+            // TODO: Fix subtitles
             let subtitle_timer_guard = self
                 .subtitle_timer
-                .schedule_repeating(wait_duration, move || play(&subtitle_decoder_ref));
+                .schedule_repeating(Duration::zero(), move || play(&subtitle_decoder_ref));
             self.subtitle_thread = Some(subtitle_timer_guard);
         }
     }
