@@ -1,6 +1,6 @@
-use eframe::NativeOptions;
 use egui::{CentralPanel, DragValue, Grid, Sense, Slider, TextEdit, Window};
 use egui_video::{AudioDevice, Player};
+use {eframe::NativeOptions, std::path::PathBuf};
 fn main() {
     let _ = eframe::run_native(
         "app",
@@ -36,10 +36,11 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.add_enabled_ui(!self.media_path.is_empty(), |ui| {
                     if ui.button("load").clicked() {
-                        match Player::new(ctx, &self.media_path.replace("\"", "")).and_then(|p| {
-                            p.with_audio(&mut self.audio_device)
-                                .and_then(|p| p.with_subtitles())
-                        }) {
+                        match Player::new(ctx, PathBuf::from(self.media_path.replace("\"", "")))
+                            .and_then(|p| {
+                                p.with_audio(&mut self.audio_device)
+                                    .and_then(|p| p.with_subtitles())
+                            }) {
                             Ok(player) => {
                                 self.player = Some(player);
                             }

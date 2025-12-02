@@ -7,12 +7,12 @@
 //! ```
 extern crate ffmpeg_next as ffmpeg;
 use atomic::Atomic;
-use bytemuck::NoUninit;
 use chrono::{DateTime, Duration, Utc};
 use egui::emath::RectTransform;
 use egui::epaint::Shadow;
 use egui::load::SizedTexture;
 use {anyhow::Result, std::collections::HashMap};
+use {bytemuck::NoUninit, std::path::PathBuf};
 
 use egui::{
     vec2, Align2, Color32, ColorImage, CornerRadius, FontId, Image, Pos2, Rect, Response, Sense,
@@ -182,7 +182,7 @@ pub struct Player {
     video_elapsed_ms_override: Option<i64>,
     subtitles_queue: SubtitleQueue,
     current_subtitles: Vec<Subtitle>,
-    input_path: String,
+    input_path: PathBuf,
 }
 
 /// The possible states of a [`Player`].
@@ -1102,7 +1102,7 @@ impl Player {
     }
 
     /// Create a new [`Player`].
-    pub fn new(ctx: &egui::Context, input_path: &String) -> Result<Self> {
+    pub fn new(ctx: &egui::Context, input_path: PathBuf) -> Result<Self> {
         let input_context = input(&input_path)?;
         let video_stream = input_context
             .streams()
@@ -1139,7 +1139,7 @@ impl Player {
             ctx.load_texture("vidstream", ColorImage::example(), options.texture_options);
         let (message_sender, message_reciever) = std::sync::mpsc::channel();
         let mut streamer = Self {
-            input_path: input_path.clone(),
+            input_path,
             audio_streamer: None,
             subtitle_streamer: None,
             video_streamer: Arc::new(Mutex::new(stream_decoder)),
