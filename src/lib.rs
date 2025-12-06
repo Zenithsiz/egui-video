@@ -49,7 +49,12 @@ use tempfile::NamedTempFile;
 use std::io::Write;
 
 fn format_duration(dur: Duration) -> String {
-    let dt = DateTime::<Utc>::from(UNIX_EPOCH) + dur;
+    let epoch = DateTime::<Utc>::from(UNIX_EPOCH);
+    let dt = match dur < chrono::TimeDelta::zero() {
+        true => epoch,
+        false => epoch + dur,
+    };
+
     if dt.format("%H").to_string().parse::<i64>().unwrap() > 0 {
         dt.format("%H:%M:%S").to_string()
     } else {
